@@ -1,0 +1,37 @@
+{
+  "name": "inboxcom/f2b",
+  "version": "1.0.0",
+  "description": "Fail2ban plugin for Roundcube",
+  "license": "GPL-3.0-or-later",
+  "type": "roundcube-plugin",
+  "keywords": [
+    "fail2ban",
+    "security"
+  ],
+  "authors": [
+    {
+      "name": "Sebastian",
+      "email": "sebastian@corp.inbox.com",
+      "role": "Developer"
+    }
+  ],
+  "homepage": "https://github.com/Fjordmail/RC-Plugin-f2b/",
+  "require": {
+    "php": ">=8.0",
+    "roundcube/plugin-installer": ">=0.3.5"
+  },
+  "autoload": {
+    "classmap": [
+      "f2b.php"
+    ]
+  },
+  "extra": {
+    "roundcube": {
+      "min-version": "1.6.0",
+      "sql-dir": "./SQL",
+      "persistent-files": [
+        "config.inc.php"
+      ]
+    }
+  }
+}

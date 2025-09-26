@@ -1,0 +1,36 @@
+<?php
+
+// Check for invalid characters in username
+$config['f2b_invalid_chars'] = ' ';
+
+// Default policies:
+// P1: Users are banned 24 hours if they have 15 failed login attempts during the last 12 hours
+// P2: Users are banned 6 hours if they have 10 failed login attempts during the last 60 minutes
+// P3: Users are banned 20 minutes if they have 5 failed login attempts during the last 10 minutes
+// Px: Users are banned $ban_time minutes if they have $ban_threshold failed login attempts during the last $ban_window minutes
+$config['f2b_policies'] = [
+    [
+        'ban_window' => 60*12, // minutes
+        'ban_time' => 60*24,   // minutes
+        'ban_threshold' => 15  // times
+    ],
+    [
+        'ban_window' => 60,   // minutes
+        'ban_time' => 60*6,   // minutes
+        'ban_threshold' => 10 // times
+    ],
+    [
+        'ban_window' => 10,  // minutes
+        'ban_time' => 20,    // minutes
+        'ban_threshold' => 5 // times
+    ]
+];
+
+// Clean the database every x failed login attempts
+$config['f2b_clean_frequency'] = 500;
+
+// Whitelist of IPs that should never be banned
+$config['f2b_whitelist'] = [ '127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ];
+
+// Blacklist of IPs that are banned automatically
+$config['f2b_blacklist'] = [];
