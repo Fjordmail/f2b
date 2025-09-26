@@ -1,6 +1,5 @@
 {
   "name": "inboxcom/f2b",
-  "version": "1.0.0",
   "description": "Fail2ban plugin for Roundcube",
   "license": "GPL-3.0-or-later",
   "type": "roundcube-plugin",

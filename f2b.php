@@ -6,7 +6,6 @@
  * Fail2ban plugin for Roundcube
  *
  * @author Sebastian Karlsen <sebastian@corp.inbox.com>
- * @version 1.0.0
  */
 
 class f2b extends rcube_plugin
