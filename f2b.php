@@ -210,7 +210,7 @@ class f2b extends rcube_plugin
      * @param array $ip_list
      * @return bool
      */
-    private function ip_in_list(string $rip, array &$ip_list): bool
+    private function ip_in_list(string $rip, array $ip_list): bool
     {
         foreach ($ip_list as $cidr)
             if ($this->cidr_match($rip, $cidr))
