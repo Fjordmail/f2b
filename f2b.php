@@ -15,8 +15,6 @@ class f2b extends rcube_plugin
     private rcmail $rcmail;
     private rcube_db_mysql $dbh;
     private string $rip;
-    private array $whitelist;
-    private array $blacklist;
 
     /**
      * Init: add hooks.
@@ -31,8 +29,6 @@ class f2b extends rcube_plugin
         $this->rcmail = rcmail::get_instance();
         $this->rip = rcube_utils::remote_addr();
         $this->dbh = $this->rcmail->get_dbh();
-        $this->whitelist = $this->rcmail->config->get('f2b_whitelist', [ '127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ]);
-        $this->blacklist = $this->rcmail->config->get('f2b_blacklist', []);
 
         $this->add_hook('authenticate', [$this, 'check_invalid_chars']);
 
@@ -214,7 +210,7 @@ class f2b extends rcube_plugin
      * @param array $ip_list
      * @return bool
      */
-    private function ip_in_list(string $rip, array &$ip_list): bool
+    private function ip_in_list(string $rip, array $ip_list): bool
     {
         foreach ($ip_list as $cidr)
             if ($this->cidr_match($rip, $cidr))
@@ -223,8 +219,8 @@ class f2b extends rcube_plugin
         return false;
     }
 
-    private function is_whitelisted(): bool { return $this->ip_in_list($this->rip, $this->whitelist); }
-    private function is_blacklisted(): bool { return $this->ip_in_list($this->rip, $this->blacklist); }
+    private function is_whitelisted(): bool { return $this->ip_in_list($this->rip, $this->rcmail->config->get('f2b_whitelist', [ '127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ])); }
+    private function is_blacklisted(): bool { return $this->ip_in_list($this->rip, $this->rcmail->config->get('f2b_blacklist', [])); }
 
     /**
      * Get the number of failed login attempts
