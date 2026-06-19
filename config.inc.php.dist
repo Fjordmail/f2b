@@ -8,6 +8,7 @@ $config['f2b_invalid_chars'] = ' ';
 // P2: Users are banned 6 hours if they have 10 failed login attempts during the last 60 minutes
 // P3: Users are banned 20 minutes if they have 5 failed login attempts during the last 10 minutes
 // Px: Users are banned $ban_time minutes if they have $ban_threshold failed login attempts during the last $ban_window minutes
+// When several policies match, the one with the longest ban_time is applied, so the order below does not matter.
 $config['f2b_policies'] = [
     [
         'ban_window' => 60*12, // minutes

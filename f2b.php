@@ -16,6 +16,7 @@ class f2b extends rcube_plugin
     private rcube_db $dbh;
     private string $rip;
     private ?string $ripkey;
+    private ?bool $banned = null;
 
     /**
      * Init: add hooks.
@@ -171,6 +172,7 @@ class f2b extends rcube_plugin
         };
 
         $this->dbh->query($sql, $this->ripkey);
+        $this->banned = true;
 
         rcmail::write_log(__CLASS__, sprintf(
             '%s/%s(): Banning %s for %d minutes',
@@ -218,7 +220,9 @@ class f2b extends rcube_plugin
      */
     private function is_banned(): bool
     {
-        // Check if there is an active ban in the database
+        if ($this->banned !== null)
+            return $this->banned;
+
         $sql_result = $this->dbh->query(
             'SELECT COUNT(rip) AS cnt FROM f2b_banned WHERE rip = ? AND banned_until >= ' . $this->dbh->now(),
             $this->ripkey
@@ -227,7 +231,7 @@ class f2b extends rcube_plugin
 
         $count = ($sql_arr == false) ? 0 : intval($sql_arr['cnt']);
 
-        return $count > 0;
+        return $this->banned = $count > 0;
     }
 
      /**
