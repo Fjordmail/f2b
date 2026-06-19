@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /**
  * Inbox.com
@@ -13,7 +13,7 @@ class f2b extends rcube_plugin
     public $task = 'login';
 
     private rcmail $rcmail;
-    private rcube_db_mysql $dbh;
+    private rcube_db $dbh;
     private string $rip;
 
     /**
@@ -129,7 +129,7 @@ class f2b extends rcube_plugin
             return $args;
 
         $this->dbh->query(
-            'INSERT INTO `f2b_failed_logins` (`rip`, `email`, `timestamp`) VALUES (?, ?, CURRENT_TIMESTAMP());',
+            'INSERT INTO f2b_failed_logins (rip, email) VALUES (?, ?)',
             ip2long($this->rip), $user
         );
 
@@ -152,8 +152,8 @@ class f2b extends rcube_plugin
     private function ban(int $ban_time): void
     {
         $this->dbh->query(
-            'INSERT INTO `f2b_banned` (`rip`, `banned_until`) VALUES (?, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP()));',
-            ip2long($this->rip), $ban_time
+            'INSERT INTO f2b_banned (rip, banned_until) VALUES (?, ' . $this->dbh->now($ban_time * 60) . ')',
+            ip2long($this->rip)
         );
 
         rcmail::write_log(__CLASS__, sprintf(
@@ -192,12 +192,12 @@ class f2b extends rcube_plugin
     {
         // Check if there is an active ban in the database
         $sql_result = $this->dbh->query(
-            'SELECT COUNT(`rip`) AS `count` FROM `f2b_banned` WHERE `rip` = ? AND `banned_until` >= CURRENT_TIMESTAMP()',
+            'SELECT COUNT(rip) AS cnt FROM f2b_banned WHERE rip = ? AND banned_until >= ' . $this->dbh->now(),
             ip2long($this->rip)
         );
         $sql_arr = $this->dbh->fetch_assoc($sql_result);
 
-        $count = ($sql_arr == false) ? 0 : intval($sql_arr['count']);
+        $count = ($sql_arr == false) ? 0 : intval($sql_arr['cnt']);
 
         return $count > 0;
     }
@@ -232,12 +232,12 @@ class f2b extends rcube_plugin
     private function get_failed_login_attemps_nb(int $ban_window): int
     {
         $sql_result = $this->dbh->query(
-            'SELECT COUNT(`rip`) AS `count` FROM `f2b_failed_logins` WHERE rip = ? AND `timestamp` >= NOW() - INTERVAL ? MINUTE;',
-            ip2long($this->rip), $ban_window
+            'SELECT COUNT(rip) AS cnt FROM f2b_failed_logins WHERE rip = ? AND timestamp >= ' . $this->dbh->now(-$ban_window * 60),
+            ip2long($this->rip)
         );
         $sql_arr = $this->dbh->fetch_assoc($sql_result);
 
-        return ($sql_arr == false) ? 0 : intval($sql_arr['count']);
+        return ($sql_arr == false) ? 0 : intval($sql_arr['cnt']);
     }
 
     /**
@@ -259,11 +259,10 @@ class f2b extends rcube_plugin
         $longest_ban_time = max(array_column($policies, 'ban_time'));
 
         $q1 = $this->dbh->query(
-            'DELETE FROM `f2b_failed_logins` WHERE `timestamp` < NOW() - INTERVAL ? MINUTE;',
-            $longest_ban_time
+            'DELETE FROM f2b_failed_logins WHERE timestamp < ' . $this->dbh->now(-$longest_ban_time * 60)
         );
 
-        $q2 = $this->dbh->query('DELETE FROM `f2b_banned` WHERE `banned_until` < CURRENT_TIMESTAMP();');
+        $q2 = $this->dbh->query('DELETE FROM f2b_banned WHERE banned_until < ' . $this->dbh->now());
 
         rcmail::write_log(__CLASS__, sprintf(
             '%s/%s(): %d failed logins and %d bans (from the last %d minutes) deleted',
@@ -295,5 +294,3 @@ class f2b extends rcube_plugin
         return ($ip & $mask) == $subnet;
     }
 }
-
-?>
