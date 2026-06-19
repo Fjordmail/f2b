@@ -97,8 +97,11 @@ class f2b extends rcube_plugin
         if ($this->is_banned())
             return $this->abort_login($args);
 
-        // Loop through the policies and apply
+        // Apply the harshest matching policy (longest ban_time) regardless of
+        // config order: sort by ban_time descending so the first match wins.
         $policies = $this->rcmail->config->get('f2b_policies', []);
+        usort($policies, fn($a, $b) => $b['ban_time'] <=> $a['ban_time']);
+
         foreach ($policies as $policy) {
             $count = $this->get_failed_login_attempts_nb($policy['ban_window']);
 
