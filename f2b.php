@@ -352,6 +352,9 @@ class f2b extends rcube_plugin
     {
         if (str_contains($range, '/')) {
             [ $subnet, $bits ] = explode('/', $range, 2);
+
+            if (!ctype_digit($bits)) // Reject a malformed prefix rather than silently treating it as /0
+                return false;
             $bits = intval($bits);
         } else {
             $subnet = $range;
@@ -368,7 +371,7 @@ class f2b extends rcube_plugin
         $max_bits = strlen($ip_bin) * 8;
         if ($bits === null)
             $bits = $max_bits;
-        if ($bits < 0 || $bits > $max_bits)
+        if ($bits > $max_bits)
             return false;
 
         return $this->apply_mask($ip_bin, $bits) === $this->apply_mask($subnet_bin, $bits);
