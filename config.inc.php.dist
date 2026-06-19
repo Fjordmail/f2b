@@ -29,8 +29,12 @@ $config['f2b_policies'] = [
 // Clean the database every x failed login attempts
 $config['f2b_clean_frequency'] = 500;
 
+// IPv6 is tracked/banned by network prefix rather than by single address, since a single client is typically allocated a whole /64 (or larger).
+// IPv4 is always tracked by full address.
+$config['f2b_ipv6_prefix'] = 64;
+
 // Whitelist of IPs that should never be banned
-$config['f2b_whitelist'] = [ '127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ];
+$config['f2b_whitelist'] = [ '127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fc00::/7', 'fe80::/10' ];
 
 // Blacklist of IPs that are banned automatically
 $config['f2b_blacklist'] = [];

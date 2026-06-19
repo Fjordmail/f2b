@@ -15,6 +15,7 @@ class f2b extends rcube_plugin
     private rcmail $rcmail;
     private rcube_db $dbh;
     private string $rip;
+    private ?string $ripkey;
 
     /**
      * Init: add hooks.
@@ -28,6 +29,7 @@ class f2b extends rcube_plugin
 
         $this->rcmail = rcmail::get_instance();
         $this->rip = rcube_utils::remote_addr();
+        $this->ripkey = $this->ip_key();
         $this->dbh = $this->rcmail->get_dbh();
 
         $this->add_hook('authenticate', [$this, 'check_invalid_chars']);
@@ -124,13 +126,17 @@ class f2b extends rcube_plugin
     {
         $user = $args['user'];
 
+        // Can't track a request we couldn't resolve to an IP
+        if ($this->ripkey === null)
+            return $args;
+
         // Don't register failed login if the user already is banned
         if ($this->is_banned())
             return $args;
 
         $this->dbh->query(
             'INSERT INTO f2b_failed_logins (rip, email) VALUES (?, ?)',
-            ip2long($this->rip), $user
+            $this->ripkey, $user
         );
 
         rcmail::write_log(__CLASS__, sprintf(
@@ -153,12 +159,12 @@ class f2b extends rcube_plugin
     {
         $this->dbh->query(
             'INSERT INTO f2b_banned (rip, banned_until) VALUES (?, ' . $this->dbh->now($ban_time * 60) . ')',
-            ip2long($this->rip)
+            $this->ripkey
         );
 
         rcmail::write_log(__CLASS__, sprintf(
             '%s/%s(): Banning %s for %d minutes',
-            __CLASS__, __FUNCTION__, $this->rip, $ban_time
+            __CLASS__, __FUNCTION__, $this->ripkey, $ban_time
         ));
     }
 
@@ -193,7 +199,7 @@ class f2b extends rcube_plugin
         // Check if there is an active ban in the database
         $sql_result = $this->dbh->query(
             'SELECT COUNT(rip) AS cnt FROM f2b_banned WHERE rip = ? AND banned_until >= ' . $this->dbh->now(),
-            ip2long($this->rip)
+            $this->ripkey
         );
         $sql_arr = $this->dbh->fetch_assoc($sql_result);
 
@@ -219,7 +225,7 @@ class f2b extends rcube_plugin
         return false;
     }
 
-    private function is_whitelisted(): bool { return $this->ip_in_list($this->rip, $this->rcmail->config->get('f2b_whitelist', [ '127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ])); }
+    private function is_whitelisted(): bool { return $this->ip_in_list($this->rip, $this->rcmail->config->get('f2b_whitelist', [ '127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fc00::/7', 'fe80::/10' ])); }
     private function is_blacklisted(): bool { return $this->ip_in_list($this->rip, $this->rcmail->config->get('f2b_blacklist', [])); }
 
     /**
@@ -233,7 +239,7 @@ class f2b extends rcube_plugin
     {
         $sql_result = $this->dbh->query(
             'SELECT COUNT(rip) AS cnt FROM f2b_failed_logins WHERE rip = ? AND timestamp >= ' . $this->dbh->now(-$ban_window * 60),
-            ip2long($this->rip)
+            $this->ripkey
         );
         $sql_arr = $this->dbh->fetch_assoc($sql_result);
 
@@ -271,8 +277,59 @@ class f2b extends rcube_plugin
     }
 
     /**
-     * Check if a given IP address is in a given CIDR range
-     * https://stackoverflow.com/questions/594112/check-whether-or-not-a-cidr-subnet-contains-an-ip-address
+     * Build the key used to bucket failed logins and bans for the
+     * current remote IP. IPv4 is keyed on the full address; IPv6 is
+     * aggregated to its network prefix (default /64) so an attacker
+     * can't trivially rotate addresses within their own allocation.
+     *
+     * @return string|null The normalized key, or null for an invalid/unknown IP
+     */
+    private function ip_key(): ?string
+    {
+        $bin = @inet_pton($this->rip);
+        if ($bin === false)
+            return null;
+
+        // IPv6: mask down to the configured prefix
+        if (strlen($bin) === 16) {
+            $prefix = intval($this->rcmail->config->get('f2b_ipv6_prefix', 64));
+            if ($prefix < 0 || $prefix > 128)
+                $prefix = 64;
+            $bin = $this->apply_mask($bin, $prefix);
+        }
+
+        return inet_ntop($bin);
+    }
+
+    /**
+     * Zero out every bit of a packed (inet_pton) address beyond the
+     * given prefix length. Works for both IPv4 (4 bytes) and IPv6 (16 bytes).
+     *
+     * @param string $bin  Packed address
+     * @param int $bits    Prefix length in bits
+     * @return string      Packed network address
+     */
+    private function apply_mask(string $bin, int $bits): string
+    {
+        $out = '';
+        for ($i = 0, $len = strlen($bin); $i < $len; $i++) {
+            $remaining = $bits - $i * 8;
+
+            if ($remaining >= 8)
+                $out .= $bin[$i];                                 // whole byte kept
+            elseif ($remaining <= 0)
+                $out .= "\0";                                     // fully masked out
+            else
+                $out .= $bin[$i] & chr((0xff << (8 - $remaining)) & 0xff); // partial byte
+        }
+
+        return $out;
+    }
+
+    /**
+     * Check if a given IP address lies within a given CIDR range.
+     * Handles both IPv4 and IPv6; a range without a prefix length is
+     * treated as a single host. Mismatched address families never match.
      *
      * @param string $rip
      * @param string $range
@@ -280,17 +337,27 @@ class f2b extends rcube_plugin
      */
     private function cidr_match(string $rip, string $range): bool
     {
-        [ $subnet, $bits ] = explode('/', $range);
+        if (str_contains($range, '/')) {
+            [ $subnet, $bits ] = explode('/', $range, 2);
+            $bits = intval($bits);
+        } else {
+            $subnet = $range;
+            $bits = null;
+        }
 
-        $bits = ($bits === NULL)
-            ? 32
-            : intval($bits);
+        $ip_bin = @inet_pton($rip);
+        $subnet_bin = @inet_pton($subnet);
 
-        $ip = ip2long($rip);
-        $subnet = ip2long($subnet);
-        $mask = -1 << (32 - $bits);
-        $subnet &= $mask; // nb: in case the supplied subnet wasn't correctly aligned
+        // Both must be valid and of the same family (4 or 16 bytes)
+        if ($ip_bin === false || $subnet_bin === false || strlen($ip_bin) !== strlen($subnet_bin))
+            return false;
 
-        return ($ip & $mask) == $subnet;
+        $max_bits = strlen($ip_bin) * 8;
+        if ($bits === null)
+            $bits = $max_bits;
+        if ($bits < 0 || $bits > $max_bits)
+            return false;
+
+        return $this->apply_mask($ip_bin, $bits) === $this->apply_mask($subnet_bin, $bits);
     }
 }
