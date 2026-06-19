@@ -281,17 +281,18 @@ class f2b extends rcube_plugin
 
         if (empty($policies = $this->rcmail->config->get('f2b_policies', [])))
             return;
-        $longest_ban_time = max(array_column($policies, 'ban_time'));
+
+        $longest_ban_window = max(array_column($policies, 'ban_window'));
 
         $q1 = $this->dbh->query(
-            'DELETE FROM f2b_failed_logins WHERE timestamp < ' . $this->dbh->now(-$longest_ban_time * 60)
+            'DELETE FROM f2b_failed_logins WHERE timestamp < ' . $this->dbh->now(-$longest_ban_window * 60)
         );
 
         $q2 = $this->dbh->query('DELETE FROM f2b_banned WHERE banned_until < ' . $this->dbh->now());
 
         rcmail::write_log(__CLASS__, sprintf(
-            '%s/%s(): %d failed logins and %d bans (from the last %d minutes) deleted',
-            __CLASS__, __FUNCTION__, $q1->rowCount(), $q2->rowCount(), $longest_ban_time
+            '%s/%s(): %d failed logins (older than %d minutes) and %d expired bans deleted',
+            __CLASS__, __FUNCTION__, $q1->rowCount(), $longest_ban_window, $q2->rowCount()
         ));
     }
 
