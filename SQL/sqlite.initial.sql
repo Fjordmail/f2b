@@ -20,4 +20,4 @@ CREATE TABLE IF NOT EXISTS f2b_banned (
 
 -- Record the schema version (read by bin/updatedb.sh --package=f2b)
 
-INSERT OR REPLACE INTO system (name, value) VALUES ('f2b-version', '2026061902');
+INSERT OR IGNORE INTO system (name, value) VALUES ('f2b-version', '2026061902');

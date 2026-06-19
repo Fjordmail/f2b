@@ -23,4 +23,4 @@ CREATE TABLE IF NOT EXISTS f2b_banned (
 -- Record the schema version (read by bin/updatedb.sh --package=f2b)
 
 INSERT INTO system (name, value) VALUES ('f2b-version', '2026061902')
-    ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value;
+    ON CONFLICT (name) DO NOTHING;

@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS `f2b_banned` (
 
 -- Record the schema version (read by bin/updatedb.sh --package=f2b)
 
-INSERT INTO `system` (`name`, `value`) VALUES ('f2b-version', '2026061902')
-  ON DUPLICATE KEY UPDATE `value` = '2026061902';
+INSERT IGNORE INTO `system` (`name`, `value`) VALUES ('f2b-version', '2026061902');
 
 SET FOREIGN_KEY_CHECKS=1;
