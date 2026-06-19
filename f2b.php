@@ -53,11 +53,12 @@ class f2b extends rcube_plugin
         if ($args['abort'])
             return $args;
 
-        // Abort if no invalid chars are configured
-        if (empty($invalid_chars = str_split($this->rcmail->config->get('f2b_invalid_chars', ' '))))
+        // An empty config disables the check
+        $invalid_chars = (string) $this->rcmail->config->get('f2b_invalid_chars', ' ');
+        if ($invalid_chars === '')
             return $args;
 
-        foreach ($invalid_chars as $char) {
+        foreach (str_split($invalid_chars) as $char) {
             if (str_contains($args['user'], $char)) {
                 return $this->abort_login(
                     $args,
