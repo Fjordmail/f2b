@@ -63,7 +63,7 @@ class f2b extends rcube_plugin
                 return $this->abort_login(
                     $args,
                     $this->gettext('f2b_invalid_chars'),
-                    sprintf('%s/%s(): Invalid characters in username: abort login to "%s" from %s', __CLASS__, __FUNCTION__, $args['user'], $this->rip)
+                    sprintf('%s/%s(): Invalid characters in username: abort login to "%s" from %s', __CLASS__, __FUNCTION__, $this->log_safe($args['user']), $this->rip)
                 );
             }
         }
@@ -89,7 +89,7 @@ class f2b extends rcube_plugin
             return $this->abort_login(
                 $args,
                 $this->gettext('f2b_blacklisted'),
-                sprintf('%s/%s(): Blacklisted: abort login to %s from %s', __CLASS__, __FUNCTION__, $args['user'], $this->rip)
+                sprintf('%s/%s(): Blacklisted: abort login to %s from %s', __CLASS__, __FUNCTION__, $this->log_safe($args['user']), $this->rip)
             );
         }
 
@@ -142,7 +142,7 @@ class f2b extends rcube_plugin
 
         rcmail::write_log(__CLASS__, sprintf(
             '%s/%s(): Register failed login to %s from %s at %s',
-            __CLASS__, __FUNCTION__, $user, $this->rip, date('Y-m-d H:i:s')
+            __CLASS__, __FUNCTION__, $this->log_safe($user), $this->rip, date('Y-m-d H:i:s')
         ));
 
         $this->clean_expired_bans();
@@ -183,11 +183,23 @@ class f2b extends rcube_plugin
             : $error;
 
         $log_msg = (empty($log_msg))
-            ? sprintf('%s/%s(): Banned: abort login to %s from %s', __CLASS__, __FUNCTION__, $args['user'], $this->rip)
+            ? sprintf('%s/%s(): Banned: abort login to %s from %s', __CLASS__, __FUNCTION__, $this->log_safe($args['user']), $this->rip)
             : $log_msg;
 
         rcmail::write_log(__CLASS__, $log_msg);
         return $args;
+    }
+
+    /**
+     * Sanitize an untrusted value (e.g. a submitted username) for safe inclusion in a log line: 
+     * escape control characters such as CR/LF that could otherwise be used to forge log entries.
+     *
+     * @param string $s
+     * @return string
+     */
+    private function log_safe(string $s): string
+    {
+        return addcslashes($s, "\x00..\x1f\x7f");
     }
 
     /**
