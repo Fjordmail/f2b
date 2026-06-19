@@ -17,6 +17,11 @@ class f2b extends rcube_plugin
     private string $rip;
     private ?string $ripkey;
     private ?bool $banned = null;
+    private array $default_policies = [
+        [ 'ban_window' => 60 * 12, 'ban_time' => 60 * 24, 'ban_threshold' => 15 ],
+        [ 'ban_window' => 60,      'ban_time' => 60 * 6,  'ban_threshold' => 10 ],
+        [ 'ban_window' => 10,      'ban_time' => 20,      'ban_threshold' => 5 ],
+    ];
 
     /**
      * Init: add hooks.
@@ -100,7 +105,7 @@ class f2b extends rcube_plugin
 
         // Apply the harshest matching policy (longest ban_time) regardless of
         // config order: sort by ban_time descending so the first match wins.
-        $policies = $this->rcmail->config->get('f2b_policies', []);
+        $policies = $this->rcmail->config->get('f2b_policies', $this->default_policies);
         usort($policies, fn($a, $b) => $b['ban_time'] <=> $a['ban_time']);
 
         foreach ($policies as $policy) {
@@ -286,7 +291,7 @@ class f2b extends rcube_plugin
         if (rand(1, $clean_freq) != 1)
             return;
 
-        if (empty($policies = $this->rcmail->config->get('f2b_policies', [])))
+        if (empty($policies = $this->rcmail->config->get('f2b_policies', $this->default_policies)))
             return;
 
         $longest_ban_window = max(array_column($policies, 'ban_window'));
