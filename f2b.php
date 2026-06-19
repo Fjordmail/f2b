@@ -100,7 +100,7 @@ class f2b extends rcube_plugin
         // Loop through the policies and apply
         $policies = $this->rcmail->config->get('f2b_policies', []);
         foreach ($policies as $policy) {
-            $count = $this->get_failed_login_attemps_nb($policy['ban_window']);
+            $count = $this->get_failed_login_attempts_nb($policy['ban_window']);
 
             if ($count >= $policy['ban_threshold']) {
                 $this->ban($policy['ban_time']);
@@ -248,7 +248,7 @@ class f2b extends rcube_plugin
      * @param int $ban_window
      * @return int
      */
-    private function get_failed_login_attemps_nb(int $ban_window): int
+    private function get_failed_login_attempts_nb(int $ban_window): int
     {
         $sql_result = $this->dbh->query(
             'SELECT COUNT(rip) AS cnt FROM f2b_failed_logins WHERE rip = ? AND timestamp >= ' . $this->dbh->now(-$ban_window * 60),
