@@ -158,10 +158,16 @@ class f2b extends rcube_plugin
      */
     private function ban(int $ban_time): void
     {
-        $this->dbh->query(
-            'INSERT INTO f2b_banned (rip, banned_until) VALUES (?, ' . $this->dbh->now($ban_time * 60) . ')',
-            $this->ripkey
-        );
+        // Upsert (rip is unique) so concurrent requests can't pile up duplicate
+        // ban rows for the same key. Time stays DB-side to keep clock semantics.
+        $banned_until = $this->dbh->now($ban_time * 60);
+        $sql = 'INSERT INTO f2b_banned (rip, banned_until) VALUES (?, ' . $banned_until . ')';
+        $sql .= match ($this->dbh->db_provider) {
+            'postgres', 'sqlite' => ' ON CONFLICT (rip) DO UPDATE SET banned_until = EXCLUDED.banned_until',
+            default              => ' ON DUPLICATE KEY UPDATE banned_until = ' . $banned_until,
+        };
+
+        $this->dbh->query($sql, $this->ripkey);
 
         rcmail::write_log(__CLASS__, sprintf(
             '%s/%s(): Banning %s for %d minutes',
