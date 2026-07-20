@@ -116,7 +116,7 @@ class f2b extends rcube_plugin
 
                 return $this->abort_login(
                     $args,
-                    str_replace(':ban_time', $policy['ban_time'], $this->gettext('f2b_banned_for'))
+                    str_replace(':ban_time', (string) $policy['ban_time'], $this->gettext('f2b_banned_for'))
                 );
             }
         }
